@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Kosakata Bahasa Inggris Esensial</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Konfigurasi Tailwind untuk menggunakan font Inter -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#3B82F6',
+                        'correct-green': '#10B981',
+                        'wrong-red': '#EF4444',
+                        'light-gray': '#F9FAFB',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Gaya kustom untuk memastikan semua elemen interaktif terlihat bagus */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F3F4F6;
+        }
+        .quiz-button {
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .quiz-button:hover {
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        .quiz-option:hover {
+            background-color: #E5E7EB;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        /* Animasi sederhana untuk pop-up */
+        .modal-content {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9) }
+            to { opacity: 1; transform: scale(1) }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Kontainer Utama Aplikasi -->
+    <div id="app" class="w-full max-w-lg bg-white rounded-xl shadow-2xl p-6 md:p-8">
+
+        <!-- Header Aplikasi -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-extrabold text-gray-800">Kuis Kosakata</h1>
+            <p class="text-gray-500">Uji kemampuan Bahasa Inggrismu!</p>
+        </header>
+
+        <!-- Tampilan Pemilihan Kategori (Initial View) -->
+        <div id="category-selection" class="space-y-4">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Pilih Tema Latihan</h2>
+            <!-- Tombol Kategori -->
+            <button onclick="startQuiz('verbs')" class="w-full py-4 px-6 bg-primary-blue text-white rounded-lg font-bold quiz-button">
+                Kata Kerja (Verbs) - 150 Kata
+            </button>
+            <button onclick="startQuiz('adjectives')" class="w-full py-4 px-6 bg-yellow-500 text-white rounded-lg font-bold quiz-button">
+                Kata Sifat (Adjectives) - 100 Kata
+            </button>
+            <button onclick="startQuiz('adverbs')" class="w-full py-4 px-6 bg-green-500 text-white rounded-lg font-bold quiz-button">
+                Kata Keterangan (Adverbs) - 50 Kata
+            </button>
+            <button onclick="startQuiz('others')" class="w-full py-4 px-6 bg-purple-500 text-white rounded-lg font-bold quiz-button">
+                Preposisi, Konjungsi, Dll. - 50 Kata
+            </button>
+        </div>
+
+        <!-- Tampilan Kuis (Quiz View) -->
+        <div id="quiz-view" class="hidden">
+            <div class="mb-4 flex justify-between items-center">
+                <p class="text-sm font-medium text-primary-blue" id="quiz-category-label"></p>
+                <p class="text-lg font-bold text-gray-700" id="question-counter"></p>
+            </div>
+            
+            <div class="bg-light-gray p-6 rounded-lg shadow-inner mb-6">
+                <p class="text-xl text-gray-800 mb-2">Apa arti kata ini?</p>
+                <p class="text-4xl font-extrabold text-primary-blue" id="quiz-question"></p>
+            </div>
+
+            <!-- Area Opsi Jawaban -->
+            <div id="options-container" class="space-y-4">
+                <!-- Opsi akan di-inject oleh JavaScript -->
+            </div>
+            
+            <!-- Tombol Kembali ke Menu -->
+            <button onclick="resetQuiz()" class="w-full mt-8 py-3 text-sm text-gray-500 hover:text-gray-700 transition duration-150">
+                &larr; Kembali ke Pemilihan Tema
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Modal Pop-up (Untuk Jawaban dan Lanjut/Istirahat) -->
+    <div id="modal" class="fixed inset-0 hidden items-center justify-center p-4 z-50 modal-backdrop">
+        <div id="modal-content" class="modal-content bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <h3 id="modal-title" class="text-2xl font-bold mb-4"></h3>
+            <p id="modal-message" class="text-gray-700 mb-6"></p>
+            <button id="modal-button" class="py-3 px-6 bg-primary-blue text-white rounded-lg font-semibold quiz-button" onclick="closeModal()">Lanjut</button>
+        </div>
+    </div>
+
+
+    <script>
+        // Data Kosakata dari dokumen pengguna
+        const VOCABULARY_DATA = {
+            verbs: [
+                ['Be', 'Ada/Adalah'], ['Have', 'Memiliki'], ['Do', 'Melakukan'], ['Say', 'Mengatakan'],
+                ['Get', 'Mendapatkan'], ['Make', 'Membuat'], ['Go', 'Pergi'], ['Know', 'Tahu'],
+                ['Take', 'Mengambil'], ['See', 'Melihat'], ['Come', 'Datang'], ['Think', 'Berpikir'],
+                ['Look', 'Melihat'], ['Want', 'Menginginkan'], ['Give', 'Memberikan'], ['Use', 'Menggunakan'],
+                ['Find', 'Menemukan'], ['Tell', 'Memberitahu'], ['Ask', 'Bertanya'], ['Work', 'Bekerja'],
+                ['Seem', 'Terlihat/Tampak'], ['Feel', 'Merasa'], ['Try', 'Mencoba'], ['Leave', 'Meninggalkan'],
+                ['Call', 'Memanggil'], ['Need', 'Membutuhkan'], ['Become', 'Menjadi'], ['Put', 'Meletakkan'],
+                ['Mean', 'Berarti'], ['Keep', 'Menyimpan/Menjaga'], ['Let', 'Mengizinkan'], ['Begin', 'Memulai'],
+                ['Help', 'Membantu'], ['Talk', 'Berbicara'], ['Turn', 'Berbelok/Berubah'], ['Start', 'Memulai'],
+                ['Show', 'Menunjukkan'], ['Hear', 'Mendengar'], ['Play', 'Bermain'], ['Run', 'Berlari'],
+                ['Live', 'Tinggal/Hidup'], ['Believe', 'Percaya'], ['Bring', 'Membawa'], ['Happen', 'Terjadi'],
+                ['Write', 'Menulis'], ['Stand', 'Berdiri'], ['Sit', 'Duduk'], ['Lose', 'Kehilangan'],
+                ['Pay', 'Membayar'], ['Meet', 'Bertemu'], ['Include', 'Menyertakan'], ['Continue', 'Melanjutkan'],
+                ['Set', 'Mengatur'], ['Learn', 'Belajar'], ['Change', 'Mengubah'], ['Lead', 'Memimpin'],
+                ['Understand', 'Mengerti'], ['Watch', 'Menonton'], ['Follow', 'Mengikuti'], ['Stop', 'Berhenti'],
+                ['Create', 'Menciptakan'], ['Speak', 'Berbicara'], ['Read', 'Membaca'], ['Allow', 'Mengizinkan'],
+                ['Add', 'Menambahkan'], ['Spend', 'Menghabiskan'], ['Grow', 'Tumbuh'], ['Open', 'Membuka'],
+                ['Walk', 'Berjalan'], ['Win', 'Menang'], ['Offer', 'Menawarkan'], ['Remember', 'Mengingat'],
+                ['Love', 'Mencintai'], ['Consider', 'Mempertimbangkan'], ['Decide', 'Memutuskan'], ['Return', 'Kembali'],
+                ['Explain', 'Menjelaskan'], ['Wait', 'Menunggu'], ['Receive', 'Menerima'], ['Teach', 'Mengajar'],
+                ['Learn', 'Belajar'], ['Sell', 'Menjual'], ['Buy', 'Membeli'], ['Win', 'Menang'],
+                ['Lose', 'Kalah'], ['Carry', 'Membawa'], ['Send', 'Mengirim'], ['Meet', 'Bertemu'],
+                ['Hold', 'Memegang/Menahan'], ['Build', 'Membangun'], ['Fail', 'Gagal'], ['Offer', 'Menawarkan'],
+                ['Share', 'Berbagi'], ['Move', 'Bergerak'], ['Throw', 'Melempar'], ['Catch', 'Menangkap'],
+                ['Jump', 'Melompat'], ['Sing', 'Menyanyi'], ['Dance', 'Menari'], ['Cook', 'Memasak'],
+                ['Clean', 'Membersihkan'], ['Wash', 'Mencuci'], ['Start', 'Memulai'], ['End', 'Mengakhiri'],
+                ['Agree', 'Setuju'], ['Disagree', 'Tidak Setuju'], ['Hope', 'Berharap'], ['Prove', 'Membuktikan'],
+                ['Wish', 'Berharap'], ['Care', 'Peduli'], ['Hate', 'Benci'], ['Love', 'Mencintai'],
+                ['Enjoy', 'Menikmati'], ['Save', 'Menyimpan/Menyelamatkan'], ['Spend', 'Menghabiskan'], ['Cut', 'Memotong'],
+                ['Hit', 'Memukul'], ['Kick', 'Menendang'], ['Shout', 'Berteriak'], ['Whisper', 'Berbisik'],
+                ['Smell', 'Mencium Bau'], ['Taste', 'Mencicipi'], ['Touch', 'Menyentuh'], ['Breathe', 'Bernapas'],
+                ['Cry', 'Menangis'], ['Smile', 'Tersenyum'], ['Laugh', 'Tertawa'], ['Drive', 'Mengemudi'],
+                ['Ride', 'Mengendarai'], ['Wear', 'Mengenakan'], ['Fix', 'Memperbaiki'], ['Break', 'Memecahkan'],
+                ['Wake', 'Bangun'], ['Study', 'Belajar'], ['Travel', 'Bepergian'], ['Visit', 'Mengunjungi'],
+                ['Print', 'Mencetak'], ['Scan', 'Memindai'], ['Save', 'Menyimpan (data)'], ['Load', 'Memuat'],
+                ['Count', 'Menghitung'], ['Measure', 'Mengukur'], ['Weigh', 'Menimbang'], ['Describe', 'Mendeskripsikan'],
+                ['Define', 'Mendefinisikan'], ['Protect', 'Melindungi'], ['Destroy', 'Menghancurkan'], ['Create', 'Menciptakan'],
+                ['Finish', 'Menyelesaikan']
+            ],
+            adjectives: [
+                ['Good', 'Baik'], ['New', 'Baru'], ['First', 'Pertama'], ['Last', 'Terakhir'],
+                ['Long', 'Panjang'], ['Great', 'Hebat/Besar'], ['Little', 'Kecil/Sedikit'], ['Own', 'Milik sendiri'],
+                ['Other', 'Lain'], ['Old', 'Tua'], ['Right', 'Benar/Kanan'], ['Big', 'Besar'],
+                ['High', 'Tinggi'], ['Different', 'Berbeda'], ['Small', 'Kecil'], ['Large', 'Besar'],
+                ['Next', 'Berikutnya'], ['Early', 'Awal'], ['Young', 'Muda'], ['Important', 'Penting'],
+                ['Public', 'Publik'], ['Bad', 'Buruk'], ['Same', 'Sama'], ['Able', 'Mampu'],
+                ['Sure', 'Yakin'], ['True', 'Benar'], ['Whole', 'Seluruh'], ['Clear', 'Jelas'],
+                ['Fine', 'Baik'], ['Happy', 'Senang'], ['Sad', 'Sedih'], ['Ready', 'Siap'],
+                ['Simple', 'Sederhana'], ['Common', 'Umum'], ['Certain', 'Pasti'], ['Short', 'Pendek'],
+                ['Easy', 'Mudah'], ['Strong', 'Kuat'], ['National', 'Nasional'], ['Low', 'Rendah'],
+                ['Quick', 'Cepat'], ['Hot', 'Panas'], ['Cold', 'Dingin'], ['Warm', 'Hangat'],
+                ['Cool', 'Sejuk/Keren'], ['Beautiful', 'Cantik/Indah'], ['Ugly', 'Jelek'], ['Nice', 'Bagus/Menyenangkan'],
+                ['Tired', 'Lelah'], ['Busy', 'Sibuk'], ['Free', 'Bebas/Gratis'], ['Quiet', 'Tenang'],
+                ['Loud', 'Keras (suara)'], ['Wet', 'Basah'], ['Dry', 'Kering'], ['Empty', 'Kosong'],
+                ['Full', 'Penuh'], ['Clean', 'Bersih'], ['Dirty', 'Kotor'], ['Cheap', 'Murah'],
+                ['Expensive', 'Mahal'], ['Wide', 'Lebar'], ['Narrow', 'Sempit'], ['Deep', 'Dalam'],
+                ['Shallow', 'Dangkal'], ['Simple', 'Sederhana'], ['Complex', 'Kompleks'], ['Easy', 'Mudah'],
+                ['Difficult', 'Sulit'], ['Fast', 'Cepat'], ['Slow', 'Lambat'], ['Strong', 'Kuat'],
+                ['Weak', 'Lemah'], ['Soft', 'Lembut'], ['Hard', 'Keras'], ['Smooth', 'Halus'],
+                ['Rough', 'Kasar'], ['Rich', 'Kaya'], ['Poor', 'Miskin'], ['Modern', 'Modern'],
+                ['Ancient', 'Kuno'], ['Straight', 'Lurus'], ['Curved', 'Melengkung'], ['Bright', 'Cerah'],
+                ['Dark', 'Gelap'], ['Normal', 'Normal'], ['Strange', 'Aneh'], ['Funny', 'Lucu'],
+                ['Serious', 'Serius'], ['Kind', 'Baik hati'], ['Mean', 'Jahat/Pelit'], ['Polite', 'Sopan'],
+                ['Rude', 'Kasar/Tidak sopan'], ['Brave', 'Berani'], ['Afraid', 'Takut'], ['Wise', 'Bijaksana'],
+                ['Foolish', 'Bodoh'], ['Patient', 'Sabar'], ['Angry', 'Marah']
+            ],
+            adverbs: [
+                ['Very', 'Sangat'], ['Really', 'Sungguh'], ['Always', 'Selalu'], ['Never', 'Tidak pernah'],
+                ['Often', 'Sering'], ['Rarely', 'Jarang'], ['Usually', 'Biasanya'], ['Sometimes', 'Kadang-kadang'],
+                ['Today', 'Hari ini'], ['Tomorrow', 'Besok'], ['Yesterday', 'Kemarin'], ['Now', 'Sekarang'],
+                ['Then', 'Lalu'], ['Here', 'Di sini'], ['There', 'Di sana'], ['Up', 'Ke atas'],
+                ['Down', 'Ke bawah'], ['In', 'Di dalam'], ['Out', 'Di luar'], ['Before', 'Sebelum'],
+                ['After', 'Setelah'], ['Well', 'Dengan baik'], ['Soon', 'Segera'], ['Away', 'Jauh'],
+                ['Simply', 'Dengan sederhana'], ['Suddenly', 'Tiba-tiba'], ['Exactly', 'Tepat/Persis'], ['Barely', 'Hampir tidak'],
+                ['Clearly', 'Dengan jelas'], ['Quickly', 'Dengan cepat'], ['Slowly', 'Dengan lambat'], ['Easily', 'Dengan mudah'],
+                ['Happily', 'Dengan senang'], ['Sadly', 'Dengan sedih'], ['Loudly', 'Dengan keras'], ['Quietly', 'Dengan tenang'],
+                ['Highly', 'Sangat/Jauh'], ['Deeply', 'Sangat/Dalam'], ['Mostly', 'Kebanyakan'], ['Partly', 'Sebagian'],
+                ['Again', 'Lagi'], ['Twice', 'Dua kali'], ['Enough', 'Cukup'], ['Too', 'Terlalu/Juga'],
+                ['Almost', 'Hampir'], ['Even', 'Bahkan'], ['Just', 'Baru saja/Hanya'], ['Perhaps', 'Mungkin'],
+                ['Maybe', 'Mungkin']
+            ],
+            others: [
+                ['To', 'Ke/Untuk'], ['Of', 'Dari/Tentang'], ['In', 'Di/Dalam'], ['For', 'Untuk/Selama'],
+                ['On', 'Di atas/Pada'], ['With', 'Dengan'], ['At', 'Di (tempat/waktu)'], ['By', 'Oleh/Dekat'],
+                ['From', 'Dari'], ['Up', 'Ke atas'], ['Down', 'Ke bawah'], ['Out', 'Keluar'],
+                ['Into', 'Ke dalam'], ['Over', 'Di atas'], ['Under', 'Di bawah'], ['But', 'Tetapi'],
+                ['Or', 'Atau'], ['As', 'Sebagai/Karena'], ['So', 'Jadi/Sehingga'], ['If', 'Jika'],
+                ['That', 'Bahwa/Itu'], ['And', 'Dan'], ['Because', 'Karena'], ['About', 'Tentang'],
+                ['After', 'Setelah'], ['Through', 'Melalui'], ['While', 'Sementara'], ['Until', 'Sampai'],
+                ['Below', 'Di bawah'], ['Above', 'Di atas'], ['Across', 'Menyeberang'], ['Behind', 'Di belakang'],
+                ['Between', 'Di antara (dua)'], ['Among', 'Di antara (banyak)'], ['Before', 'Sebelum'], ['During', 'Selama'],
+                ['Without', 'Tanpa'], ['Although', 'Meskipun'], ['Since', 'Sejak'], ['Unless', 'Kecuali jika'],
+                ['Whether', 'Apakah'], ['Both', 'Keduanya'], ['Either', 'Salah satu'], ['Neither', 'Tidak keduanya'],
+                ['Such', 'Yang seperti itu'], ['How', 'Bagaimana'], ['When', 'Kapan'], ['Where', 'Di mana'],
+                ['Why', 'Mengapa']
+            ]
+        };
+
+        // Variabel Global untuk state kuis
+        let currentQuizData = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        const QUESTIONS_PER_SESSION = 15;
+        let totalQuestionsAnswered = 0;
+
+        // Fungsi utilitas untuk mengacak array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Fungsi untuk mengambil data kuis untuk sesi saat ini (15 soal acak)
+        function getQuizSession(category) {
+            const allWords = VOCABULARY_DATA[category];
+            // Acak semua kata di kategori
+            const shuffledWords = shuffleArray([...allWords]);
+            
+            // Ambil 15 kata pertama untuk kuis sesi ini
+            const sessionWords = shuffledWords.slice(0, QUESTIONS_PER_SESSION);
+            
+            const quizQuestions = sessionWords.map((word, index) => {
+                const [english, correctIndonesian] = word;
+                
+                // Ambil 2 jawaban salah acak dari kata lain di kategori
+                const wrongOptionsPool = allWords.filter(w => w[1] !== correctIndonesian);
+                const shuffledWrongPool = shuffleArray(wrongOptionsPool);
+                
+                // Jika tidak cukup 2, gunakan yang ada, jika kurang dari 2, ini kasus yang jarang (hanya 1 kata)
+                const wrongOptions = shuffledWrongPool.slice(0, 2).map(w => w[1]);
+                
+                // Buat semua opsi dan acak
+                const options = shuffleArray([correctIndonesian, ...wrongOptions]);
+
+                return {
+                    id: index,
+                    question: english,
+                    correctAnswer: correctIndonesian,
+                    options: options
+                };
+            });
+
+            return quizQuestions;
+        }
+
+        // Fungsi untuk memulai kuis
+        function startQuiz(category) {
+            // Set label kategori di UI
+            const categoryLabels = {
+                verbs: 'Kata Kerja (Verbs)',
+                adjectives: 'Kata Sifat (Adjectives)',
+                adverbs: 'Kata Keterangan (Adverbs)',
+                others: 'Preposisi, Konjungsi, Dll.'
+            };
+            document.getElementById('quiz-category-label').textContent = `Tema: ${categoryLabels[category]}`;
+            
+            // Inisialisasi state kuis
+            currentQuizData = getQuizSession(category);
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestionsAnswered = 0;
+
+            // Tampilkan tampilan kuis
+            document.getElementById('category-selection').classList.add('hidden');
+            document.getElementById('quiz-view').classList.remove('hidden');
+
+            // Muat soal pertama
+            loadQuestion();
+        }
+
+        // Fungsi untuk memuat soal kuis berikutnya
+        function loadQuestion() {
+            if (currentQuestionIndex >= currentQuizData.length) {
+                // Sesi 15 soal selesai
+                showBreakModal();
+                return;
+            }
+
+            const currentQuestion = currentQuizData[currentQuestionIndex];
+            
+            // Update UI: Nomor soal
+            document.getElementById('question-counter').textContent = `Soal ${currentQuestionIndex + 1} / ${QUESTIONS_PER_SESSION}`;
+            
+            // Update UI: Pertanyaan
+            document.getElementById('quiz-question').textContent = currentQuestion.question;
+
+            // Update UI: Opsi Jawaban
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = ''; // Bersihkan opsi lama
+
+            currentQuestion.options.forEach((optionText, index) => {
+                const button = document.createElement('button');
+                button.textContent = `${String.fromCharCode(65 + index)}. ${optionText}`; // A, B, C...
+                button.className = 'quiz-option w-full text-left py-3 px-4 bg-light-gray text-gray-700 rounded-lg font-medium border-2 border-gray-200 hover:border-primary-blue focus:outline-none focus:ring-2 focus:ring-primary-blue transition duration-150';
+                button.onclick = () => checkAnswer(optionText, currentQuestion.correctAnswer);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        // Fungsi untuk memeriksa jawaban
+        function checkAnswer(selectedOption, correctAnswer) {
+            totalQuestionsAnswered++;
+            if (selectedOption === correctAnswer) {
+                score++;
+                showResultModal(true, correctAnswer);
+            } else {
+                showResultModal(false, correctAnswer);
+            }
+        }
+
+        // Fungsi untuk menampilkan pop-up hasil
+        function showResultModal(isCorrect, correctAnswer) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalButton = document.getElementById('modal-button');
+
+            if (isCorrect) {
+                modalTitle.textContent = "Jawaban Benar! 🎉";
+                modalTitle.classList.remove('text-wrong-red');
+                modalTitle.classList.add('text-correct-green');
+                modalMessage.textContent = "Luar biasa! Lanjut ke soal berikutnya.";
+                modalButton.textContent = "Lanjut Soal";
+                modalButton.onclick = () => { closeModal(); nextQuestion(); };
+                modalButton.classList.remove('bg-wrong-red');
+                modalButton.classList.add('bg-correct-green');
+            } else {
+                modalTitle.textContent = "Jawaban Salah 😔";
+                modalTitle.classList.remove('text-correct-green');
+                modalTitle.classList.add('text-wrong-red');
+                modalMessage.innerHTML = `Jawaban yang benar adalah: <br><span class="font-bold text-lg text-gray-800">${correctAnswer}</span>.`;
+                modalButton.textContent = "Lanjut Soal";
+                modalButton.onclick = () => { closeModal(); nextQuestion(); };
+                modalButton.classList.remove('bg-correct-green');
+                modalButton.classList.add('bg-wrong-red');
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        
+        // Fungsi untuk melanjutkan ke soal berikutnya atau menampilkan modal istirahat/lanjut
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < QUESTIONS_PER_SESSION) {
+                loadQuestion();
+            } else {
+                showBreakModal();
+            }
+        }
+
+        // Fungsi untuk menampilkan pop-up istirahat/lanjut (setelah 15 soal)
+        function showBreakModal() {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalButton = document.getElementById('modal-button');
+
+            modalTitle.textContent = "Sesi Selesai!";
+            modalTitle.classList.remove('text-wrong-red');
+            modalTitle.classList.add('text-primary-blue');
+            modalMessage.innerHTML = `Anda telah menyelesaikan ${QUESTIONS_PER_SESSION} soal.<br>Skor Anda: <span class="text-xl font-extrabold">${score} / ${QUESTIONS_PER_SESSION}</span>.`;
+            
+            modalButton.textContent = "Kembali ke Menu Utama";
+            modalButton.onclick = resetQuiz;
+            modalButton.classList.remove('bg-wrong-red');
+            modalButton.classList.add('bg-primary-blue');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // Fungsi untuk menutup modal (digunakan saat sesi kuis belum selesai)
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+        }
+
+        // Fungsi untuk mereset kuis dan kembali ke menu kategori
+        function resetQuiz() {
+            closeModal();
+            document.getElementById('quiz-view').classList.add('hidden');
+            document.getElementById('category-selection').classList.remove('hidden');
+            currentQuizData = [];
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestionsAnswered = 0;
+        }
+
+        // Tampilkan modal selamat datang saat halaman dimuat
+        window.onload = function() {
+            // Kita akan menggunakan modal yang sama untuk pesan selamat datang singkat.
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalButton = document.getElementById('modal-button');
+
+            modalTitle.textContent = "Selamat Datang!";
+            modalTitle.classList.add('text-primary-blue');
+            modalMessage.innerHTML = `Website kuis ini dibuat dari kosakata yang Anda berikan.<br>Setiap sesi terdiri dari ${QUESTIONS_PER_SESSION} soal acak. Selamat Belajar!`;
+            
+            modalButton.textContent = "Mulai";
+            modalButton.onclick = closeModal;
+            modalButton.classList.add('bg-primary-blue');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    </script>
+</body>
+</html>
